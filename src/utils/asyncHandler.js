@@ -14,7 +14,7 @@
 
 
 export const asyncHandler = (requestHandler) => (
-  async (req, res, next) => {
+  (req, res, next) => {
     Promise
       .resolve(requestHandler(req, res, next))
       .then(() => console.log("resolved"))
