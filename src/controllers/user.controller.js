@@ -6,13 +6,13 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
-    const user = await User.findOne({ userId })
+    const user = await User.findById(userId)
     const accessToken = user.generateAccessToken()
     const refreshToken = user.generateRefreshToken()
-
+    
     user.refreshToken = refreshToken
     user.save({ validateBeforeSave: false })
-
+    
     return { accessToken, refreshToken }
   }
   catch (error) {
@@ -78,7 +78,7 @@ const registerUser = asyncHandler(async (req, res) => {
   })
 
 
-  const registeredUser = user.removeFeilds(["password", "refreshToken"])
+  const registeredUser = user.removeFields(["password", "refreshToken"])
 
   if (!registeredUser) {
     throw new ApiError(500, "Something went wrong while registering the user")
@@ -97,35 +97,37 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body
+  console.log('Body:', req.body);
 
 
   if (!username && !email) {
-    throw new ApiError()
+    throw new ApiError(400, "username or email is required")
   }
 
-  const user = User.findOne({
+  const user = await User.findOne({
     $or: [{ username }, { email }]
   })
 
   if (!user) {
-    throw new ApiError()
+    throw new ApiError(404, "User does not exist")
   }
 
 
-  const isPasswordValid = await user.isPasswordValid(password)
+  const isPasswordValid = await user.isPasswordCorrect(password)
 
   if (!isPasswordValid) {
-    throw new ApiError()
+    throw new ApiError(401, "Invalid user credentials")
   }
 
 
-  const loggedinUser = user.removeFeilds(["password", "refreshToken"])
+  const loggedinUser = user.removeFields(["password", "refreshToken"])
 
   if (!loggedinUser) {
     throw new ApiError(500, "Something went wrong while logging in the user")
   }
 
-  const { accessToken, refreshToken } = generateAccessAndRefreshToken(user._id)
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
   const options = {
     httpOnly: true,

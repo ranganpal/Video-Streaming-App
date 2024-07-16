@@ -67,7 +67,7 @@ userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password)
 }
 
-userSchema.methods.removeFeilds = function (fields = []) {
+userSchema.methods.removeFields = function (fields = []) {
   const userObject = this.toObject()
   fields.map(field => delete userObject[`${field}`])
   return userObject
