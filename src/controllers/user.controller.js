@@ -9,10 +9,10 @@ const generateAccessAndRefreshToken = async (userId) => {
     const user = await User.findById(userId)
     const accessToken = user.generateAccessToken()
     const refreshToken = user.generateRefreshToken()
-    
+
     user.refreshToken = refreshToken
     user.save({ validateBeforeSave: false })
-    
+
     return { accessToken, refreshToken }
   }
   catch (error) {
@@ -23,7 +23,6 @@ const generateAccessAndRefreshToken = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, fullname, password } = req.body
 
-
   const emptyField = [username, email, fullname, password].some(
     field => field?.trim() === ""
   )
@@ -32,7 +31,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required")
   }
 
-
   const existingUser = await User.findOne({
     $or: [{ username }, { email }]
   })
@@ -40,7 +38,6 @@ const registerUser = asyncHandler(async (req, res) => {
   if (existingUser) {
     throw new ApiError(409, "User with email or username already exists")
   }
-
 
   let avatarLocalPath, coverImageLocalPath
 
@@ -67,7 +64,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Cloudinary :: Avatar file is required")
   }
 
-
   const user = await User.create({
     email,
     fullname,
@@ -76,7 +72,6 @@ const registerUser = asyncHandler(async (req, res) => {
     avatar: avatar.url,
     coverImage: coverImage?.url || ""
   })
-
 
   const registeredUser = user.removeFields(["password", "refreshToken"])
 
@@ -97,8 +92,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body
-  console.log('Body:', req.body);
-
 
   if (!username && !email) {
     throw new ApiError(400, "username or email is required")
@@ -112,13 +105,11 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User does not exist")
   }
 
-
   const isPasswordValid = await user.isPasswordCorrect(password)
 
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials")
   }
-
 
   const loggedinUser = user.removeFields(["password", "refreshToken"])
 
@@ -126,14 +117,8 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while logging in the user")
   }
 
-
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
-
-  const options = {
-    httpOnly: true,
-    secure: true
-  }
-
+  const options = { httpOnly: true, secure: true }
 
   return res
     .status(201)
@@ -158,10 +143,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   )
 
-  const options = {
-    httpOnly: true,
-    secure: true
-  }
+  const options = { httpOnly: true, secure: true }
 
   return res
     .status(200)
@@ -170,8 +152,45 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged Out"))
 })
 
+const regenerateTokens = asyncHandler(async (req, res) => {
+  const oldRefreshToken = req.cookies?.refreshToken || req.headers("Authorization")?.replace("Bearer ", "")
+
+  if (!oldRefreshToken) {
+    throw new ApiError(401, "Unauthorized request")
+  }
+
+  const decodedToken = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+  const user = await User.findById(decodedToken._id)
+
+  if (!user) {
+    throw new ApiError(401, "Invalid refresh token")
+  }
+
+  if (oldRefreshToken !== user?.refreshToken) {
+    throw new ApiError(401, "Refresh token is expired or used")
+
+  }
+
+  const { newAccessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
+  const options = { httpOnly: true, secure: true }
+
+
+  return res
+    .status(201)
+    .cookie("accessToken", newAccessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { newAccessToken, newRefreshToken },
+        "Tokens Regenerated Successfully"
+      )
+    )
+})
+
 export {
   registerUser,
   loginUser,
   logoutUser,
+  regenerateTokens,
 }
