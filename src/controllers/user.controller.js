@@ -1,7 +1,8 @@
-import { asyncHandler } from "../utils/asyncHandler.js"
+import jwt from "jsonwebtoken"
 import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/apiResponse.js"
+import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -108,13 +109,13 @@ const loginUser = asyncHandler(async (req, res) => {
   })
 
   if (!user) {
-    throw new ApiError(404, "User does not exist")
+    throw new ApiError(404, "User does not exist with given email")
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password)
 
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid user credentials")
+    throw new ApiError(401, "Invalid password")
   }
 
   const loggedinUser = user.removeFields(["password", "refreshToken"])
@@ -160,7 +161,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 const regenerateTokens = asyncHandler(async (req, res) => {
-  const oldRefreshToken = req.cookies?.refreshToken || req.headers("Authorization")?.replace("Bearer ", "")
+  const oldRefreshToken = req.cookies?.refreshToken || req.header("Authorization")?.replace("Bearer ", "")
 
   if (!oldRefreshToken) {
     throw new ApiError(401, "Unauthorized request")
@@ -173,23 +174,21 @@ const regenerateTokens = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid refresh token")
   }
 
-  if (oldRefreshToken !== user?.refreshToken) {
+  if (oldRefreshToken !== user.refreshToken) {
     throw new ApiError(401, "Refresh token is expired or used")
-
   }
 
-  const { newAccessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
   const options = { httpOnly: true, secure: true }
-
 
   return res
     .status(201)
-    .cookie("accessToken", newAccessToken, options)
-    .cookie("refreshToken", newRefreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(
       new ApiResponse(
         200,
-        { newAccessToken, newRefreshToken },
+        { accessToken, refreshToken },
         "Tokens Regenerated Successfully"
       )
     )
@@ -339,6 +338,22 @@ const changeCoverImage = asyncHandler(async (req, res) => {
     )
 })
 
+const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user?._id).select("-password")
+
+  if (!user) {
+    throw new ApiError(404, "User not found")
+  }
+
+  await deleteFromCloudinary(user.avatar?.public_id)
+  await deleteFromCloudinary(user.coverImage?.public_id)
+  await User.findByIdAndDelete(user._id)
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "User deleted successfully"))
+});
+
 export {
   registerUser,
   loginUser,
@@ -350,4 +365,5 @@ export {
   changePassword,
   changeAvatar,
   changeCoverImage,
+  deleteUser
 }

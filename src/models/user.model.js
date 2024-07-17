@@ -1,6 +1,6 @@
-import { Schema, model } from "mongoose"
-import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
+import { Schema, model } from "mongoose"
 
 const imageSchema = new Schema(
   {
