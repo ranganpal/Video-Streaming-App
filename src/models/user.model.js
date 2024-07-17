@@ -2,6 +2,16 @@ import { Schema, model } from "mongoose"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
 
+const imageSchema = new Schema(
+  {
+    url: { type: String },
+    public_id: { type: String },
+  },
+  {
+    _id: false
+  }
+);
+
 const userSchema = new Schema(
   {
     username: {
@@ -26,11 +36,11 @@ const userSchema = new Schema(
       index: true
     },
     avatar: {
-      type: String,  // cloudinary url
+      type: imageSchema,
       required: true,
     },
     coverImage: {
-      type: String,  // cloudinary url
+      type: imageSchema,
     },
     watchHistory: [
       {
@@ -39,7 +49,7 @@ const userSchema = new Schema(
       }
     ],
     password: {
-      type: String,  // Challenge
+      type: String,
       required: [true, 'Password is required']
     },
     refreshToken: {

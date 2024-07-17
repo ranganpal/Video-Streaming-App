@@ -17,7 +17,6 @@ export const asyncHandler = (requestHandler) => (
   (req, res, next) => {
     Promise
       .resolve(requestHandler(req, res, next))
-      .then(() => console.log("resolved"))
       .catch(error => next(error))
   }
 )
