@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
+import mongoose from "mongoose"
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -143,7 +144,7 @@ const loginUser = asyncHandler(async (req, res) => {
 const logoutUser = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(
     req.user?._id,
-    { $set: { refreshToken: undefined } },
+    { $unset: { refreshToken: 1 } },
     { new: true }
   )
 
@@ -157,7 +158,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, {}, "User logged Out"))
+    .json(new ApiResponse(200, {}, "User logged Out Successfully"))
 })
 
 const regenerateTokens = asyncHandler(async (req, res) => {
@@ -352,7 +353,124 @@ const deleteUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "User deleted successfully"))
-});
+})
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is missing")
+  }
+
+  const channelProfiles = await User.aggregate([
+    {
+      $match: { username: username.trim().toLowerCase() }
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribes"
+      }
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers"
+      }
+    },
+    {
+      $addFields: {
+        isSubscribed: { $in: [req.user?._id, "$subscribers.subscriber"] },
+        subscribesCount: { $size: "$subscribes" },
+        subscribersCount: { $size: "$subscribers" }
+      }
+    },
+    {
+      $project: {
+        email: 1,
+        username: 1,
+        fullName: 1,
+        avatar: 1,
+        coverImage: 1,
+        isSubscribed: 1,
+        subscribesCount: 1,
+        subscribersCount: 1
+      }
+    }
+  ])
+
+  if (!channelProfiles?.length) {
+    throw new ApiError(404, "Channel does not exists")
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { channelProfile: channelProfiles[0] },
+        "User channel fetched successfully"
+      )
+    )
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const users = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(String(req.user?._id))
+      }
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchedVideoIds",
+        foreignField: "_id",
+        as: "watchedVideoDetails",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "ownerId",
+              foreignField: "_id",
+              as: "ownerDetail",
+              pipeline: [
+                {
+                  $project: {
+                    avatar: 1,
+                    username: 1,
+                    fullName: 1
+                  }
+                }
+              ]
+            }
+          },
+          {
+            $addFields: {
+              ownerDetail: {
+                $first: "$ownerDetail"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ])
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { watchHistory: users[0].watchedVideoDetails },
+        "Watch history fetched successfully"
+      )
+    )
+})
 
 export {
   registerUser,
@@ -365,5 +483,7 @@ export {
   changePassword,
   changeAvatar,
   changeCoverImage,
-  deleteUser
+  deleteUser,
+  getUserChannelProfile,
+  getWatchHistory
 }

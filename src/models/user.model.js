@@ -42,7 +42,7 @@ const userSchema = new Schema(
     coverImage: {
       type: imageSchema,
     },
-    watchHistory: [
+    watchedVideoIds: [
       {
         type: Schema.Types.ObjectId,
         ref: "Video"

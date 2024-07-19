@@ -12,7 +12,9 @@ import {
   changePassword,
   changeAvatar,
   changeCoverImage,
-  deleteUser
+  deleteUser,
+  getUserChannelProfile,
+  getWatchHistory
 } from "../controllers/user.controller.js"
 
 const router = Router()
@@ -42,16 +44,25 @@ router.route("/update-fullname").patch(verifyJWT, changeFullname)
 router.route("/update-password").patch(verifyJWT, changePassword)
 
 router.route("/update-avatar").patch(
-  verifyJWT, 
-  upload.single("avatar"), 
+  verifyJWT,
+  upload.single("avatar"),
   changeAvatar
 )
 router.route("/update-cover-image").patch(
-  verifyJWT, 
-  upload.single("coverImage"), 
+  verifyJWT,
+  upload.single("coverImage"),
   changeCoverImage
 )
 
 router.route("/delete").delete(verifyJWT, deleteUser)
+
+router.route("/channel-profile/:username").get(
+  verifyJWT,
+  getUserChannelProfile
+)
+router.route("/watch-history").get(
+  verifyJWT,
+  getWatchHistory
+)
 
 export default router
