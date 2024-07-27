@@ -5,7 +5,7 @@ import { Schema, model } from "mongoose"
 const imageSchema = new Schema(
   {
     url: { type: String },
-    public_id: { type: String },
+    publicId: { type: String },
   },
   {
     _id: false

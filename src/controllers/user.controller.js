@@ -303,8 +303,8 @@ const changeAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while updating the Avatar")
   }
 
-  await deleteFromCloudinary(user.avatar.public_id)
-  user.avatar = { url: avatar.url, public_id: avatar.public_id }
+  await deleteFromCloudinary(user.avatar.publicId)
+  user.avatar = { url: avatar.url, publicId: avatar.public_id }
   await user.save({ validateBeforeSave: false })
 
   return res
@@ -328,8 +328,8 @@ const changeCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while updating the Cover image")
   }
 
-  await deleteFromCloudinary(user.coverImage.public_id)
-  user.coverImage = { url: coverImage.url, public_id: coverImage.public_id }
+  await deleteFromCloudinary(user.coverImage.publicId)
+  user.coverImage = { url: coverImage.url, publicId: coverImage.public_id }
   await user.save({ validateBeforeSave: false })
 
   return res
