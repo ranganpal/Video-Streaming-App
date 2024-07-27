@@ -1,5 +1,4 @@
-import mongoose, { isValidObjectId } from "mongoose"
-import { User } from "../models/user.model.js"
+import { isValidObjectId } from "mongoose"
 import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -7,27 +6,35 @@ import { Subscription } from "../models/subscription.model.js"
 
 
 const toggleSubscription = asyncHandler(async (req, res) => {
-  const { channelId } = req.params
+  const channelId = req.params?.channelId
   const subscriberId = req.user?._id
 
   if (!channelId || !subscriberId) {
     throw new ApiError(400, "Channel ID or Subscriber ID is missing")
   }
 
-  const result = await Subscription.findOneAndDelete(
+  if (!isValidObjectId(channelId)) {
+    throw new ApiError(400, "Invalid channel ID");
+  }
+
+  const oldSubscription = await Subscription.findOneAndDelete(
     {
       subscriber: subscriberId,
       channel: channelId
     }
   )
 
-  if (!result.value) {
-    await Subscription.create(
+  if (!oldSubscription) {
+    const newSubscription = await Subscription.create(
       {
         subscriber: subscriberId,
         channel: channelId
       }
     )
+
+    if (!newSubscription) {
+      throw new ApiError(500, "Failed to create new subscription");
+    }
   }
 
   return res
@@ -36,7 +43,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         {},
-        `${!result.value ? "Subscribed" : "Unsubscribed"}`
+        `${!oldSubscription ? "Subscribed" : "Unsubscribed"}`
       )
     )
 })
