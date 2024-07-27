@@ -3,14 +3,14 @@ import { verifyJWT } from "../middlewares/auth.middleware.js"
 import {
   toggleSubscription,
   getSubscribedChannels,
-  getUserChannelSubscribers,
+  getChannelSubscribers
 } from "../controllers/subscription.controller.js"
 
 const router = Router()
 router.use(verifyJWT)
 
 router.route("/c/:channelId").post(toggleSubscription)
-router.route("/c/:channelId").get(getSubscribedChannels)
-router.route("/s/:subscriberId").get(getUserChannelSubscribers)
+router.route("/subscribes").get(getSubscribedChannels)
+router.route("/subscribers").get(getChannelSubscribers)
 
 export default router
