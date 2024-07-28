@@ -1,4 +1,4 @@
-import { isValidObjectId } from "mongoose"
+import mongoose, { isValidObjectId } from "mongoose"
 import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -56,7 +56,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     Subscription.aggregate([
       {
         $match: {
-          subscriber: req.user?._id
+          subscriber: new mongoose.Types.ObjectId(String(req.user?._id))
         }
       },
       {
@@ -112,7 +112,7 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
     Subscription.aggregate([
       {
         $match: {
-          channel: req.user?._id
+          channel: new mongoose.Types.ObjectId(String(req.user?._id))
         }
       },
       {

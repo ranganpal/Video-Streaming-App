@@ -369,24 +369,54 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
-        foreignField: "subscriber",
-        as: "subscribes"
+        let: { userId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$subscriber", "$$userId"] }
+            }
+          },
+          {
+            $count: "count"
+          }
+        ],
+        as: "subscribesCount"
       }
     },
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
-        foreignField: "channel",
-        as: "subscribers"
+        let: { userId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$channel", "$$userId"] }
+            }
+          },
+          {
+            $count: "count"
+          }
+        ],
+        as: "subscribersCount"
       }
     },
     {
-      $addFields: {
-        isSubscribed: { $in: [req.user?._id, "$subscribers.subscriber"] },
-        subscribesCount: { $size: "$subscribes" },
-        subscribersCount: { $size: "$subscribers" }
+      $lookup: {
+        from: "subscriptions",
+        let: { userId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$channel", "$$userId"] },
+                  { $eq: ["$subscriber", req.user?._id] }
+                ]
+              }
+            }
+          }
+        ],
+        as: "userSubscriptions"
       }
     },
     {
@@ -396,9 +426,19 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         fullName: 1,
         avatar: 1,
         coverImage: 1,
-        isSubscribed: 1,
-        subscribesCount: 1,
-        subscribersCount: 1
+        subscribesCount: {
+          $ifNull: [{ $first: "$subscribesCount.count" }, 0]
+        },
+        subscribersCount: {
+          $ifNull: [{ $first: "$subscribersCount.count" }, 0]
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $gt: [{ $size: "$userSubscriptions" }, 0] },
+            then: true,
+            else: false
+          }
+        }
       }
     }
   ])

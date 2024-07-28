@@ -1,15 +1,23 @@
 import { Schema, model } from "mongoose"
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2"
 
-const subscriptionSchema = new Schema(
+const viewSchema = new Schema(
   {
-    subscriber: {
+    video: {
+      type: Schema.Types.ObjectId,
+      ref: "Video"
+    },
+    publisher: {
       type: Schema.Types.ObjectId,
       ref: "User"
     },
-    channel: {
+    viewer: {
       type: Schema.Types.ObjectId,
       ref: "User"
+    },
+    watchHistory: {
+      type: Boolean,
+      default: true
     }
   },
   {
@@ -17,6 +25,6 @@ const subscriptionSchema = new Schema(
   }
 )
 
-subscriptionSchema.plugin(mongooseAggregatePaginate)
+viewSchema.plugin(mongooseAggregatePaginate)
 
-export const Subscription = model("Subscription", subscriptionSchema)
+export const View = model("View", viewSchema)
