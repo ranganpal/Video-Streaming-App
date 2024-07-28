@@ -130,8 +130,8 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
         $project: {
           subscriberId: "$subscriberDetails._id",
           subscriberAvatar: "$subscriberDetails.avatar.url",
-          subscriberFullname: "$subscriberDetails.fullname",
-          subscriberUsername: "$subscriberDetails.fullname"
+          subscriberUsername: "$subscriberDetails.username",
+          subscriberFullname: "$subscriberDetails.fullname"
         }
       }
     ]),
