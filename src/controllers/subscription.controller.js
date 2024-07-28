@@ -83,8 +83,8 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
       page,
       limit,
       customLabels: {
-        docs: 'subscribedChannels',
-        totalDocs: 'totalChannels'
+        docs: "subscribedChannels",
+        totalDocs: "totalChannels"
       }
     }
   )
@@ -139,8 +139,8 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
       page,
       limit,
       customLabels: {
-        docs: 'channelSubscribers',
-        totalDocs: 'totalSubscribers'
+        docs: "channelSubscribers",
+        totalDocs: "totalSubscribers"
       }
     }
   )
