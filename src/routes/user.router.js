@@ -14,7 +14,6 @@ import {
   changeCoverImage,
   deleteUser,
   getUserChannelProfile,
-  getWatchHistory
 } from "../controllers/user.controller.js"
 
 const router = Router()
@@ -59,10 +58,6 @@ router.route("/delete").delete(verifyJWT, deleteUser)
 router.route("/channel-profile/:username").get(
   verifyJWT,
   getUserChannelProfile
-)
-router.route("/watch-history").get(
-  verifyJWT,
-  getWatchHistory
 )
 
 export default router
