@@ -51,7 +51,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 const getSubscribedChannels = asyncHandler(async (req, res) => {
   const page = parseInt(req.query?.page) || 1
   const limit = parseInt(req.query?.limit) || 10
-  
+
   const subscriptions = await Subscription.aggregatePaginate(
     Subscription.aggregate([
       {
@@ -64,18 +64,18 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
           from: "users",
           localField: "channel",
           foreignField: "_id",
-          as: "channelDetials"
+          as: "channelDetails"
         }
       },
       {
-        $unwind: "$channelDetials"
+        $unwind: "$channelDetails"
       },
       {
         $project: {
           channelId: "$channelDetails._id",
-          channelAvatar: "$channelDetails.avatar",
-          channelFullname: "$channelDetails.fullname",
-          channelUsername: "$channelDetails.fullname"
+          channelAvatar: "$channelDetails.avatar.url",
+          channelUsername: "$channelDetails.username",
+          channelFullname: "$channelDetails.fullname"
         }
       }
     ]),
@@ -120,18 +120,18 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
           from: "users",
           localField: "subscriber",
           foreignField: "_id",
-          as: "subscriberDetials"
+          as: "subscriberDetails"
         }
       },
       {
-        $unwind: "$subscriberDetials"
+        $unwind: "$subscriberDetails"
       },
       {
         $project: {
-          subscriberId: "$subscriberDetials._id",
-          subscriberAvatar: "$subscriberDetials.avatar",
-          subscriberFullname: "$subscriberDetials.fullname",
-          subscriberUsername: "$subscriberDetials.fullname"
+          subscriberId: "$subscriberDetails._id",
+          subscriberAvatar: "$subscriberDetails.avatar.url",
+          subscriberFullname: "$subscriberDetails.fullname",
+          subscriberUsername: "$subscriberDetails.fullname"
         }
       }
     ]),
