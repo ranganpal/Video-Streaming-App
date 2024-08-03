@@ -116,13 +116,13 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "publisher",
+          localField: "owner",
           foreignField: "_id",
-          as: "publisherDetails"
+          as: "ownerDetails"
         }
       },
       {
-        $unwind: "$publisherDetails"
+        $unwind: "$ownerDetails"
       },
       {
         $project: {
@@ -131,10 +131,10 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
           videoDuration: videoDetails.duration,
           videoThumbnail: videoDetails.thumbnail,
           videoViews: videoDetails.viewsCount,
-          publisherId: publisherDetails._id,
-          publisherAvatar: publisherDetails.avatar,
-          publisherFullname: publisherDetails.fullname,
-          publisherUsername: publisherDetails.username,
+          ownerId: ownerDetails._id,
+          ownerAvatar: ownerDetails.avatar,
+          ownerUsername: ownerDetails.username,
+          ownerFullname: ownerDetails.fullname
         }
       }
     ]),

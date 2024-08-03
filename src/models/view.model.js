@@ -7,7 +7,7 @@ const viewSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Video"
     },
-    publisher: {
+    owner: {
       type: Schema.Types.ObjectId,
       ref: "User"
     },
