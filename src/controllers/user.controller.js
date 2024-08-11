@@ -63,6 +63,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   if (!avatar) {
     throw new ApiError(400, "Cloudinary :: Avatar file is required")
+    // throw new ApiError(500, "Something went wrong while uplaoding avatar file in cloudinary")
   }
 
   const user = await User.create({
@@ -232,7 +233,6 @@ const changeEmail = asyncHandler(async (req, res) => {
         "Account details updated successfully"
       )
     )
-
 })
 
 const changeFullname = asyncHandler(async (req, res) => {
@@ -344,6 +344,8 @@ const deleteUser = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User not found")
   }
+
+  // have to delete views of this user
 
   await deleteFromCloudinary(user.avatar?.public_id)
   await deleteFromCloudinary(user.coverImage?.public_id)
