@@ -186,7 +186,7 @@ const changeVideo = asyncHandler(async (req, res) => {
   const oldVideoFile = await deleteFromCloudinary(oldVideo.videoFile.publicId)
 
   if (!oldVideoFile) {
-    throw new ApiError(500, "Something went wrong while deleting the old video file")
+    throw new ApiError(500, "Something went wrong while deleting the old video file from cloudinary")
   }
 
   const newVideoFile = await uploadOnCloudinary(videoLocalPath)
@@ -245,7 +245,7 @@ const changeThumbnail = asyncHandler(async (req, res) => {
   const oldThumbnail = await deleteFromCloudinary(oldVideo.thumbnail.publicId)
 
   if (!oldThumbnail) {
-    throw new ApiError(500, "Something went wrong while deleting the old thumbnail")
+    throw new ApiError(500, "Something went wrong while deleting the old thumbnail from cloudinary")
   }
 
   const newThumbnail = await uploadOnCloudinary(thumbnailLocalPath)

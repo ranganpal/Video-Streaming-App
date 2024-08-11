@@ -176,9 +176,9 @@ const updateWatchHistory = asyncHandler(async (req, res) => {
       video: new mongoose.Types.ObjectId(String(videoId)),
       viewer: new mongoose.Types.ObjectId(String(userId))
     },
-    {
-      $set: { watchHistory: false }
-    }
+    { $set: { watchHistory: false } },
+    // { new: true }
+
   )
 
   if (!view) {
