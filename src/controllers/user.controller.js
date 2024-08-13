@@ -40,19 +40,15 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists")
   }
 
-  let avatarLocalPath, coverImageLocalPath
-
-  if (req.files &&
+  const avatarLocalPath = (req.files &&
     Array.isArray(req.files.avatar) &&
-    req.files.avatar.length > 0) {
-    avatarLocalPath = req.files.avatar[0].path
-  }
+    req.files.avatar.length > 0
+  ) ? req.files.avatar[0].path : null
 
-  if (req.files &&
+  const coverImageLocalPath = (req.files &&
     Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0) {
-    coverImageLocalPath = req.files.coverImage[0].path
-  }
+    req.files.coverImage.length > 0
+  ) ? req.files.coverImage[0].path : null
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is required")
@@ -380,21 +376,30 @@ const changeCoverImage = asyncHandler(async (req, res) => {
 })
 
 const deleteUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user?._id).select("-password")
+  await deleteFromCloudinary(req.user?.avatar?.public_id)
+  await deleteFromCloudinary(req.user?.coverImage?.public_id)
 
-  if (!user) {
-    throw new ApiError(404, "User not found")
+  const deletedUser = await User.findByIdAndDelete(req.user?._id)
+
+  if (!deletedUser) {
+    throw new ApiError(500, "Something went wrong while deleting the user")
   }
 
-  // have to delete views of this user
+  const viewsOfTheDeletedUser = await View.deleteMany({ owner: req.user?._id })
 
-  await deleteFromCloudinary(user.avatar?.public_id)
-  await deleteFromCloudinary(user.coverImage?.public_id)
-  await User.findByIdAndDelete(user._id)
+  if (!viewsOfTheDeletedUser) {
+    throw new ApiError(500, "Something went wrong while deleteing views of the video")
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "User deleted successfully"))
+    .json(
+      new ApiResponse(
+        200, 
+        {}, 
+        "User deleted successfully"
+      )
+    )
 })
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
