@@ -143,6 +143,7 @@ const getVideo = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while fetching the video")
   }
 
+  // Bug: multiple view of same user in reloading
   const view = await View({
     video: video._id,
     owner: video.publisher,

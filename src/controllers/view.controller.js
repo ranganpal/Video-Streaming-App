@@ -5,52 +5,73 @@ import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 
 const getVideoViewers = asyncHandler(async (req, res) => {
-  const videoId = req.params.videoId
-  const page = parseInt(req.query?.page) || 1
-  const limit = parseInt(req.query?.limit) || 10
+  const {
+    page,
+    limit,
+    query,
+    videoId,
+    sortBy = "createdAt",
+    sortType = "dec"
+  } = req.query
 
-  if (!videoId) {
-    throw new ApiError(404, "Video ID is missing")
+  const pipeline = [
+    {
+      $match: {
+        video: new mongoose.Types.ObjectId(String(videoId))
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "viewer",
+        foreignField: "_id",
+        as: "viewerDetails"
+      }
+    },
+    {
+      $unwind: "$viewerDetails"
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        viewerId: "$viewerDetails._id",
+        viewerAvatar: "$viewerDetails.avatar",
+        viewerUsername: "$viewerDetails.username",
+        viewerFullname: "$viewerDetails.fullname",
+      }
+    }
+  ]
+
+  if (query) {
+    pipeline.push({
+      $match: {
+        viewerUsername: { $regex: query, $options: 'i' }
+      }
+    })
+  }
+
+  pipeline.push({
+    $sort: {
+      [sortBy]: sortType === "inc" ? 1 : -1
+    }
+  })
+
+  const options = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    customLabels: {
+      docs: "videoViewers",
+      totalDocs: "totalViewers"
+    }
   }
 
   const views = await View.aggregatePaginate(
-    View.aggregate([
-      {
-        $match: {
-          video: new mongoose.Types.ObjectId(String(videoId))
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "viewer",
-          foreignField: "_id",
-          as: "viewerDetails"
-        }
-      },
-      {
-        $unwind: "$viewerDetails"
-      },
-      {
-        $project: {
-          viewerId: "$viewerDetails._id",
-          viewerAvatar: "$viewerDetails.avatar",
-          viewerUsername: "$viewerDetails.username",
-          viewerFullname: "$viewerDetails.fullname",
-        }
-      }
-    ]),
-    {
-      page,
-      limit,
-      customLabels: {
-        docs: "videoViewers",
-        totalDocs: "totalViewers"
-      }
-    }
+    View.aggregate(pipeline),
+    options
   )
 
-  if (!views || views.videoViewers) {
+  if (!views || !views.videoViewers) {
     throw new ApiError(500, "Failed to fetch video viewers")
   }
 
@@ -63,92 +84,119 @@ const getVideoViewers = asyncHandler(async (req, res) => {
         "Successfully fetched video viewers"
       )
     )
-
 })
 
 const getWatchedVideos = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query?.page) || 1
-  const limit = parseInt(req.query?.limit) || 10
+  const {
+    page,
+    limit,
+    query,
+    sortBy = "createdAt",
+    sortType = "dec"
+  } = req.query
 
-  const views = await View.aggregatePaginate(
-    View.aggregate([
-      {
-        $match: {
-          viewer: new mongoose.Types.ObjectId(String(req.user?._id)),
-          watchHistory: true
-        }
-      },
-      {
-        $lookup: {
-          from: "videos",
-          localField: "video",
-          foreignField: "_id",
-          pipeline: [
-            {
-              $lookup: {
-                from: "views",
-                let: { videoId: "$_id" },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: { $eq: ["$video", "$$videoId"] }
-                    }
-                  },
-                  {
-                    $count: "count"
-                  }
-                ],
-                as: "viewsCount"
-              }
-            },
-            {
-              $addFields: {
-                viewsCount: { $first: "$viewsCount.count" }
-              }
-            }
-          ],
-          as: "videoDetails"
-        }
-      },
-      {
-        $unwind: "$videoDetails"
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "owner",
-          foreignField: "_id",
-          as: "ownerDetails"
-        }
-      },
-      {
-        $unwind: "$ownerDetails"
-      },
-      {
-        $project: {
-          videoId: videoDetails._id,
-          videoTitle: videoDetails.title,
-          videoDuration: videoDetails.duration,
-          videoThumbnail: videoDetails.thumbnail,
-          videoViews: videoDetails.viewsCount,
-          ownerId: ownerDetails._id,
-          ownerAvatar: ownerDetails.avatar,
-          ownerUsername: ownerDetails.username,
-          ownerFullname: ownerDetails.fullname
-        }
-      }
-    ]),
+  const pipeline = [
     {
-      page,
-      limit,
-      customLabels: {
-        docs: "watchVideos",
-        totalDocs: "totalVideos"
+      $match: {
+        viewer: new mongoose.Types.ObjectId(String(req.user?._id)),
+        watchHistory: true
+      }
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "video",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $lookup: {
+              from: "views",
+              let: { videoId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ["$video", "$$videoId"] }
+                  }
+                },
+                {
+                  $count: "count"
+                }
+              ],
+              as: "viewsCount"
+            }
+          },
+          {
+            $addFields: {
+              viewsCount: { $first: "$viewsCount.count" }
+            }
+          }
+        ],
+        as: "videoDetails"
+      }
+    },
+    {
+      $unwind: "$videoDetails"
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerDetails"
+      }
+    },
+    {
+      $unwind: "$ownerDetails"
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        videoId: videoDetails._id,
+        videoTitle: videoDetails.title,
+        videoDuration: videoDetails.duration,
+        videoThumbnail: videoDetails.thumbnail,
+        videoViews: videoDetails.viewsCount,
+        ownerId: ownerDetails._id,
+        ownerAvatar: ownerDetails.avatar,
+        ownerUsername: ownerDetails.username,
+        ownerFullname: ownerDetails.fullname
       }
     }
+  ]
+
+  if (query) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { videoTitle: { $regex: query, $options: 'i' } },
+          { viewerUsername: { $regex: query, $options: 'i' } }
+        ]
+      }
+    })
+  }
+
+  pipeline.push({
+    $sort: {
+      [sortBy]: sortType === "inc" ? 1 : -1
+    }
+  })
+
+  const options = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    customLabels: {
+      docs: "watchVideos",
+      totalDocs: "totalVideos"
+    }
+  }
+
+  const views = await View.aggregatePaginate(
+    View.aggregate(pipeline),
+    options
   )
 
-  if (!views || views.watchedVideos) {
+  if (!views || !views.watchedVideos) {
     throw new ApiError(500, "Failed to fetch watched videos")
   }
 
@@ -177,7 +225,7 @@ const updateWatchHistory = asyncHandler(async (req, res) => {
       viewer: new mongoose.Types.ObjectId(String(userId))
     },
     { $set: { watchHistory: false } },
-    // { new: true }
+    { new: true }
 
   )
 
