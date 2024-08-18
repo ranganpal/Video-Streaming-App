@@ -83,7 +83,7 @@ const getVideoViewers = asyncHandler(async (req, res) => {
 })
 
 const getWatchedVideos = asyncHandler(async (req, res) => {
-  const { page, limit, query, videoId, sortBy, sortType } = req.query
+  const { page, limit, query, sortBy, sortType } = req.query
 
   const pipeline = [
     {
