@@ -18,6 +18,7 @@ import viewRouter from "./routes/view.route.js"
 
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/subscriptions", subscriptionRouter)
+app.use("/api/v1/videos", subscriptionRouter)
 app.use("/api/v1/views", viewRouter)
 
 
