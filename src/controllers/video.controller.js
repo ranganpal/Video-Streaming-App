@@ -80,21 +80,21 @@ const publishVideo = asyncHandler(async (req, res) => {
   }
 
   // error
-  const videoLocalPath = (req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
+  const videoFileLocalPath = (req.files &&
+    Array.isArray(req.files.videoFile) &&
+    req.files.videoFile.length > 0
   ) ? req.files.videoFile[0].path : null
 
   const thumbnailLocalPath = (req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
-  ) ? req.files.videoFile[0].path : null
+    Array.isArray(req.files.thumbnail) &&
+    req.files.thumbnail.length > 0
+  ) ? req.files.thumbnail[0].path : null
 
-  if (!videoLocalPath || !thumbnailLocalPath) {
+  if (!videoFileLocalPath || !thumbnailLocalPath) {
     throw new ApiError(400, "Video and Thumbnail both are required")
   }
 
-  const videoFile = await uploadOnCloudinary(videoLocalPath)
+  const videoFile = await uploadOnCloudinary(videoFileLocalPath)
   const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
 
   if (!videoFile || !thumbnail) {
@@ -166,15 +166,15 @@ const getVideo = asyncHandler(async (req, res) => {
 
 })
 
-const changeVideo = asyncHandler(async (req, res) => {
+const changeVideoFile = asyncHandler(async (req, res) => {
   const { videoId } = req.params
-  const videoLocalPath = req.file?.path
+  const videoFileLocalPath = req.file?.path
 
   if (!videoId) {
     throw new ApiError(400, "Video ID is required")
   }
 
-  if (!videoLocalPath) {
+  if (!videoFileLocalPath) {
     throw new ApiError(400, "Video file is missing")
   }
 
@@ -190,7 +190,7 @@ const changeVideo = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while deleting the old video file from cloudinary")
   }
 
-  const newVideoFile = await uploadOnCloudinary(videoLocalPath)
+  const newVideoFile = await uploadOnCloudinary(videoFileLocalPath)
 
   if (!newVideoFile) {
     throw new ApiError(500, "Something went wrong while uploading the new video file in cloudinary")
@@ -411,7 +411,7 @@ export {
   getVideos,
   publishVideo,
   getVideo,
-  changeVideo,
+  changeVideoFile,
   changeThumbnail,
   changeTitle,
   changeDescription,
