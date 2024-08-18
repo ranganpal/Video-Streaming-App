@@ -395,8 +395,8 @@ const deleteUser = asyncHandler(async (req, res) => {
     .status(200)
     .json(
       new ApiResponse(
-        200, 
-        {}, 
+        200,
+        {},
         "User deleted successfully"
       )
     )
@@ -409,7 +409,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Username is missing")
   }
 
-  const channelProfiles = await User.aggregate([
+  const pipeline = [
     {
       $match: { username: username.trim().toLowerCase() }
     },
@@ -488,9 +488,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         }
       }
     }
-  ])
+  ]
 
-  if (!channelProfiles?.length) {
+  const channelProfiles = await User.aggregate(pipeline)
+
+  if (!channelProfiles &&  !channelProfiles.length) {
     throw new ApiError(404, "Channel does not exists")
   }
 
