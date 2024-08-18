@@ -49,44 +49,66 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 })
 
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query?.page) || 1
-  const limit = parseInt(req.query?.limit) || 10
+  const { page, limit, query, sortBy, sortType } = req.query  
 
-  const subscriptions = await Subscription.aggregatePaginate(
-    Subscription.aggregate([
-      {
-        $match: {
-          subscriber: new mongoose.Types.ObjectId(String(req.user?._id))
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "channel",
-          foreignField: "_id",
-          as: "channelDetails"
-        }
-      },
-      {
-        $unwind: "$channelDetails"
-      },
-      {
-        $project: {
-          channelId: "$channelDetails._id",
-          channelAvatar: "$channelDetails.avatar.url",
-          channelUsername: "$channelDetails.username",
-          channelFullname: "$channelDetails.fullname"
-        }
-      }
-    ]),
+  const pipeline = [
     {
-      page,
-      limit,
-      customLabels: {
-        docs: "subscribedChannels",
-        totalDocs: "totalChannels"
+      $match: {
+        subscriber: new mongoose.Types.ObjectId(String(req.user?._id))
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "channel",
+        foreignField: "_id",
+        as: "channelDetails"
+      }
+    },
+    {
+      $unwind: "$channelDetails"
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        channelId: "$channelDetails._id",
+        channelAvatar: "$channelDetails.avatar.url",
+        channelUsername: "$channelDetails.username",
+        channelFullname: "$channelDetails.fullname"
       }
     }
+  ]
+
+  if (query) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { channelUsername: { $regex: query, $options: 'i' } },
+          { channelFullname: { $regex: query, $options: 'i' } }
+        ]
+      }
+    })
+  }
+
+  pipeline.push({
+    $sort: {
+      [sortBy || "createdAt"]: sortType === "inc" ? 1 : -1
+    }
+  })
+
+  const options = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    customLabels: {
+      docs: "subscribedChannels",
+      totalDocs: "totalChannels"
+    }
+  }
+
+  const subscriptions = await Subscription.aggregatePaginate(
+    Subscription.aggregate(pipeline),
+    options
   )
 
   if (!subscriptions || !subscriptions.subscribedChannels) {
@@ -105,44 +127,66 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
 })
 
 const getChannelSubscribers = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query?.page) || 1
-  const limit = parseInt(req.query?.limit) || 10
+  const { page, limit, query, sortBy, sortType } = req.query
 
-  const subscriptions = await Subscription.aggregatePaginate(
-    Subscription.aggregate([
-      {
-        $match: {
-          channel: new mongoose.Types.ObjectId(String(req.user?._id))
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "subscriber",
-          foreignField: "_id",
-          as: "subscriberDetails"
-        }
-      },
-      {
-        $unwind: "$subscriberDetails"
-      },
-      {
-        $project: {
-          subscriberId: "$subscriberDetails._id",
-          subscriberAvatar: "$subscriberDetails.avatar.url",
-          subscriberUsername: "$subscriberDetails.username",
-          subscriberFullname: "$subscriberDetails.fullname"
-        }
-      }
-    ]),
+  const pipeline = [
     {
-      page,
-      limit,
-      customLabels: {
-        docs: "channelSubscribers",
-        totalDocs: "totalSubscribers"
+      $match: {
+        channel: new mongoose.Types.ObjectId(String(req.user?._id))
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "subscriber",
+        foreignField: "_id",
+        as: "subscriberDetails"
+      }
+    },
+    {
+      $unwind: "$subscriberDetails"
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        subscriberId: "$subscriberDetails._id",
+        subscriberAvatar: "$subscriberDetails.avatar.url",
+        subscriberUsername: "$subscriberDetails.username",
+        subscriberFullname: "$subscriberDetails.fullname"
       }
     }
+  ]
+
+  if (query) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { subscriberUsername: { $regex: query, $options: 'i' } },
+          { subscriberFullname: { $regex: query, $options: 'i' } }
+        ]
+      }
+    })
+  }
+
+  pipeline.push({
+    $sort: {
+      [sortBy || "createdAt"]: sortType === "inc" ? 1 : -1
+    }
+  })
+
+  const options = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    customLabels: {
+      docs: "channelSubscribers",
+      totalDocs: "totalSubscribers"
+    }
+  }
+
+  const subscriptions = await Subscription.aggregatePaginate(
+    Subscription.aggregate(pipeline),
+    options
   )
 
   if (!subscriptions || !subscriptions.channelSubscribers) {
