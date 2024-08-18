@@ -5,14 +5,7 @@ import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 
 const getVideoViewers = asyncHandler(async (req, res) => {
-  const {
-    page,
-    limit,
-    query,
-    videoId,
-    sortBy = "createdAt",
-    sortType = "dec"
-  } = req.query
+  const { page, limit, query, videoId, sortBy, sortType } = req.query
 
   const pipeline = [
     {
@@ -56,7 +49,7 @@ const getVideoViewers = asyncHandler(async (req, res) => {
 
   pipeline.push({
     $sort: {
-      [sortBy]: sortType === "inc" ? 1 : -1
+      [sortBy || "createdAt"]: sortType === "inc" ? 1 : -1
     }
   })
 
@@ -90,13 +83,7 @@ const getVideoViewers = asyncHandler(async (req, res) => {
 })
 
 const getWatchedVideos = asyncHandler(async (req, res) => {
-  const {
-    page,
-    limit,
-    query,
-    sortBy = "createdAt",
-    sortType = "dec"
-  } = req.query
+  const { page, limit, query, videoId, sortBy, sortType } = req.query
 
   const pipeline = [
     {
@@ -182,7 +169,7 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
 
   pipeline.push({
     $sort: {
-      [sortBy]: sortType === "inc" ? 1 : -1
+      [sortBy || "createdAt"]: sortType === "inc" ? 1 : -1
     }
   })
 
