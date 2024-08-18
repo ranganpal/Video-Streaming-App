@@ -7,14 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 
 const getVideos = asyncHandler(async (req, res) => {
-  const {
-    page,
-    limit,
-    query,
-    channelId,
-    sortBy = "createdAt",
-    sortType = "dec"
-  } = req.query
+  const { page, limit, query, channelId, sortBy, sortType } = req.query
 
   const pipeline = []
 
@@ -46,11 +39,59 @@ const getVideos = asyncHandler(async (req, res) => {
     })
   }
 
-  pipeline.push({
-    $sort: {
-      [sortBy]: sortType === "inc" ? 1 : -1
+  pipeline.push(...[
+    {
+      $lookup: {
+        from: "views",
+        let: { videoId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$video", "$$videoId"] }
+            }
+          },
+          {
+            $count: "count"
+          }
+        ],
+        as: "viewsCount"
+      }
+    },
+    {
+      $addFields: {
+        viewsCount: { $first: "$viewsCount.count" }
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "publisher",
+        foreignField: "_id",
+        as: "publisherDetails"
+      }
+    },
+    {
+      $unwind: "$publisherDetails"
+    },
+    {
+      $project: {
+        title: 1,
+        duration: 1,
+        thumbnail: 1,
+        viewsCount: 1,
+        publisherAvatar: publisherDetails.avatar,
+        publisherUsername: publisherDetails.username,
+        publisherFullname: publisherDetails.fullname,
+        createdAt: 1,
+        updatedAt: 1
+      }
+    },
+    {
+      $sort: {
+        [sortBy || "createdAt"]: sortType === "inc" ? 1 : -1
+      }
     }
-  })
+  ])
 
   const videos = await Video.aggregatePaginate(
     Video.aggregate(pipeline),
@@ -137,21 +178,134 @@ const getVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Video ID is required")
   }
 
-  const video = await Video.findById(videoId)
+  const pipeline = [
+    {
+      $match: { _id: videoId }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "publilsher",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $lookup: {
+              from: "subscriptions",
+              let: { userId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ["$subscriber", "$$userId"] }
+                  }
+                },
+                {
+                  $count: "count"
+                }
+              ],
+              as: "subscribesCount"
+            }
+          },
+          {
+            $lookup: {
+              from: "subscriptions",
+              let: { userId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ["$channel", "$$userId"] }
+                  }
+                },
+                {
+                  $count: "count"
+                }
+              ],
+              as: "subscribersCount"
+            }
+          },
+          {
+            $lookup: {
+              from: "subscriptions",
+              let: { userId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$channel", "$$userId"] },
+                        { $eq: ["$subscriber", req.user?._id] }
+                      ]
+                    }
+                  }
+                }
+              ],
+              as: "userSubscriptions"
+            }
+          },
+          {
+            $addFields: {
+              subscribesCount: {
+                $ifNull: [{ $first: "$subscribesCount.count" }, 0]
+              },
+              subscribersCount: {
+                $ifNull: [{ $first: "$subscribersCount.count" }, 0]
+              },
+              isSubscribed: {
+                $cond: {
+                  if: { $gt: [{ $size: "$userSubscriptions" }, 0] },
+                  then: true,
+                  else: false
+                }
+              }
+            }
+          }
+        ],
+        as: "publisherDetails"
+      }
+    },
+    {
+      $unwind: "$publisherDetails"
+    },
+    {
+      $project: {
+        title: 1,
+        duration: 1,
+        videoFile: 1,
+        thumbnail: 1,
+        viewsCount: 1,
+        publisherAvatar: publisherDetails.avatar,
+        publisherUsername: publisherDetails.username,
+        publisherFullname: publisherDetails.fullname,
+        subscribesCount: publisherDetails.subscribesCount,
+        subscribersCount: publisherDetails.subscribersCount,
+        isSubscribed: publisherDetails.isSubscribed,
+        createdAt: 1,
+        updatedAt: 1
+      }
+    }
+  ]
+
+  const video = await Video.aggregate(pipeline)
 
   if (!video) {
     throw new ApiError(500, "Something went wrong while fetching the video")
   }
 
-  // Bug: multiple view of same user in reloading
-  const view = await View({
+  const oldView = await View.findOne({
     video: video._id,
     owner: video.publisher,
     viwer: req.user?._id
   })
 
-  if (!view) {
-    throw new ApiError(500, "Something went wrong while creating view of this video")
+  if (!oldView) {
+    const newView = await View.create({
+      video: video._id,
+      owner: video.publisher,
+      viwer: req.user?._id
+    })
+
+    if (!newView) {
+      throw new ApiError(500, "Something went wrong while creating view of this video")
+    }
   }
 
   return res
