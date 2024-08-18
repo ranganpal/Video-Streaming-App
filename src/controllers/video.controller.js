@@ -79,7 +79,6 @@ const publishVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Title and Description both are required")
   }
 
-  // error
   const videoFileLocalPath = (req.files &&
     Array.isArray(req.files.videoFile) &&
     req.files.videoFile.length > 0
