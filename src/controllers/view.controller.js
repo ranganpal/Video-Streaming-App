@@ -46,7 +46,10 @@ const getVideoViewers = asyncHandler(async (req, res) => {
   if (query) {
     pipeline.push({
       $match: {
-        viewerUsername: { $regex: query, $options: 'i' }
+        $or: [
+          { viewerUsername: { $regex: query, $options: 'i' } },
+          { viewerFullname: { $regex: query, $options: 'i' } }
+        ]
       }
     })
   }
@@ -170,7 +173,8 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
       $match: {
         $or: [
           { videoTitle: { $regex: query, $options: 'i' } },
-          { viewerUsername: { $regex: query, $options: 'i' } }
+          { ownerUsername: { $regex: query, $options: 'i' } },
+          { ownerFullname: { $regex: query, $options: 'i' } }
         ]
       }
     })
