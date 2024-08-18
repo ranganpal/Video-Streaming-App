@@ -284,7 +284,8 @@ const getVideo = asyncHandler(async (req, res) => {
     }
   ]
 
-  const video = await Video.aggregate(pipeline)
+  const videos = await Video.aggregate(pipeline)
+  const video = videos[0];
 
   if (!video) {
     throw new ApiError(500, "Something went wrong while fetching the video")

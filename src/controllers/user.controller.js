@@ -491,8 +491,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   ]
 
   const channelProfiles = await User.aggregate(pipeline)
+  const channelProfile = channelProfiles[0]
 
-  if (!channelProfiles &&  !channelProfiles.length) {
+  if (!channelProfile) {
     throw new ApiError(404, "Channel does not exists")
   }
 
@@ -501,7 +502,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { channelProfile: channelProfiles[0] },
+        { channelProfile },
         "User channel fetched successfully"
       )
     )
