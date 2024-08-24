@@ -13,8 +13,8 @@ import {
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
-const router = Router();
-router.use(verifyJWT);
+const router = Router()
+router.use(verifyJWT)
 
 router
   .route("/")
@@ -38,17 +38,16 @@ router
   .get(getVideo)
   .delete(deleteVideo)
 
-router.route("update-title/:videoId").patch(changeTitle)
-router.route("update-description/:videoId").patch(changeDescription)
-router.route("update-thumbnail/:videoId").patch(
+router.route("/update-video-file/:videoId").patch(
+  upload.single("videoFile"),
+  changeVideoFile
+)
+router.route("/update-thumbnail/:videoId").patch(
   upload.single("thumbnail"),
   changeThumbnail
 )
-router.route("update-video-file/:videoId").patch(
-  upload.single("videoFile"), 
-  changeVideoFile
-)
-
-router.route("/toggle-publish/:videoId").patch(togglePublishStatus);
+router.route("/update-title/:videoId").patch(changeTitle)
+router.route("/update-description/:videoId").patch(changeDescription)
+router.route("/toggle-publish-status/:videoId").patch(togglePublishStatus)
 
 export default router

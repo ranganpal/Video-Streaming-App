@@ -59,7 +59,7 @@ const getVideos = asyncHandler(async (req, res) => {
     },
     {
       $addFields: {
-        viewsCount: { $first: "$viewsCount.count" }
+        viewsCount: { $ifNull: [{ $first: "$viewsCount.count" }, 0] }
       }
     },
     {
@@ -79,9 +79,9 @@ const getVideos = asyncHandler(async (req, res) => {
         duration: 1,
         thumbnail: 1,
         viewsCount: 1,
-        publisherAvatar: publisherDetails.avatar,
-        publisherUsername: publisherDetails.username,
-        publisherFullname: publisherDetails.fullname,
+        publisherAvatar: "$publisherDetails.avatar",
+        publisherUsername: "$publisherDetails.username",
+        publisherFullname: "$publisherDetails.fullname",
         createdAt: 1,
         updatedAt: 1
       }
@@ -180,12 +180,34 @@ const getVideo = asyncHandler(async (req, res) => {
 
   const pipeline = [
     {
-      $match: { _id: videoId }
+      $match: { _id: new mongoose.Types.ObjectId(String(videoId)) }
+    },
+    {
+      $lookup: {
+        from: "views",
+        let: { videoId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$video", "$$videoId"] }
+            }
+          },
+          {
+            $count: "count"
+          }
+        ],
+        as: "viewsCount"
+      }
+    },
+    {
+      $addFields: {
+        viewsCount: { $ifNull: [{ $first: "$viewsCount.count" }, 0] }
+      }
     },
     {
       $lookup: {
         from: "users",
-        localField: "publilsher",
+        localField: "publisher",
         foreignField: "_id",
         pipeline: [
           {
@@ -268,16 +290,18 @@ const getVideo = asyncHandler(async (req, res) => {
     {
       $project: {
         title: 1,
+        description: 1,
         duration: 1,
         videoFile: 1,
         thumbnail: 1,
         viewsCount: 1,
-        publisherAvatar: publisherDetails.avatar,
-        publisherUsername: publisherDetails.username,
-        publisherFullname: publisherDetails.fullname,
-        subscribesCount: publisherDetails.subscribesCount,
-        subscribersCount: publisherDetails.subscribersCount,
-        isSubscribed: publisherDetails.isSubscribed,
+        publisherId: "$publisherDetails._id",
+        publisherAvatar: "$publisherDetails.avatar",
+        publisherUsername: "$publisherDetails.username",
+        publisherFullname: "$publisherDetails.fullname",
+        subscribesCount: "$publisherDetails.subscribesCount",
+        subscribersCount: "$publisherDetails.subscribersCount",
+        isSubscribed: "$publisherDetails.isSubscribed",
         createdAt: 1,
         updatedAt: 1
       }
@@ -285,28 +309,26 @@ const getVideo = asyncHandler(async (req, res) => {
   ]
 
   const videos = await Video.aggregate(pipeline)
-  const video = videos[0];
+  const video = videos[0]
 
   if (!video) {
     throw new ApiError(500, "Something went wrong while fetching the video")
   }
 
-  const oldView = await View.findOne({
+  await View.findOneAndDelete({
     video: video._id,
-    owner: video.publisher,
-    viwer: req.user?._id
+    owner: video.publisherId,
+    viewer: req.user?._id
   })
 
-  if (!oldView) {
-    const newView = await View.create({
-      video: video._id,
-      owner: video.publisher,
-      viwer: req.user?._id
-    })
+  const newView = await View.create({
+    video: video._id,
+    owner: video.publisherId,
+    viewer: req.user?._id
+  })
 
-    if (!newView) {
-      throw new ApiError(500, "Something went wrong while creating view of this video")
-    }
+  if (!newView) {
+    throw new ApiError(500, "Something went wrong while creating new view of the video")
   }
 
   return res
@@ -475,6 +497,9 @@ const changeDescription = asyncHandler(async (req, res) => {
   const { videoId } = req.params
   const { description } = req.body
 
+  console.log("test");
+
+
   if (!videoId) {
     throw new ApiError(400, "Video ID is required")
   }
@@ -504,6 +529,41 @@ const changeDescription = asyncHandler(async (req, res) => {
     )
 })
 
+const togglePublishStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  if (!videoId) {
+    throw new ApiError(400, "Video ID is required")
+  }
+
+  const video = await Video.findById(videoId)
+
+  if (!video) {
+    throw new ApiError(500, "Something went wrong while fetching the video")
+  }
+
+  video.isPublished = !video.isPublished
+  const updatedVideo = await video.save({ validateBeforeSave: false })
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Something went wrong while updating the video publish status");
+  }
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Something went wrong while updating the video publish status")
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { updatedVideo },
+        "Publish status toggled successfully"
+      )
+    )
+})
+
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params
 
@@ -511,13 +571,22 @@ const deleteVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Video ID is required")
   }
 
-  const oldVideo = await Video.findByIdAndDelete(videoId)
+  const oldVideo = await Video.findById(videoId)
 
   if (!oldVideo) {
-    throw new ApiError(500, "Something went wrong while deleteing the video")
+    throw new ApiError(500, "Something went wrong while fetching the video")
   }
 
-  const viewsOfTheOldVideo = await View.deleteMany({ video: videoId })
+  await deleteFromCloudinary(oldVideo.videoFile.publicId)
+  await deleteFromCloudinary(oldVideo.thumbnail.publicId)
+  
+  const deletedVideo = await Video.findByIdAndDelete(videoId)
+
+  if (!deletedVideo) {
+    throw new ApiError(500, "Something went wrong while deleting the video")
+  }
+
+  const viewsOfTheOldVideo = await View.deleteMany({ video: deletedVideo._id })
 
   if (!viewsOfTheOldVideo) {
     throw new ApiError(500, "Something went wrong while deleteing views of the video")
@@ -530,34 +599,6 @@ const deleteVideo = asyncHandler(async (req, res) => {
         200,
         {},
         "Video deleted successfully"
-      )
-    )
-})
-
-const togglePublishStatus = asyncHandler(async (req, res) => {
-  const { videoId } = req.params
-
-  if (!videoId) {
-    throw new ApiError(400, "Video ID is required")
-  }
-
-  const updatedVideo = await Video.findByIdAndUpdate(
-    videoId,
-    { $set: { isPublished: { $not: "$isPublished" } } },
-    { new: true }
-  )
-
-  if (!updatedVideo) {
-    throw new ApiError(500, "Something went wrong while updating the video publish status")
-  }
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        {},
-        "Publish status toggled successfully"
       )
     )
 })
