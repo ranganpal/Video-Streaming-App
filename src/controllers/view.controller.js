@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/apiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 
 const getVideoViewers = asyncHandler(async (req, res) => {
-  const { page, limit, query, videoId, sortBy, sortType } = req.query
+  const { videoId, page, limit, query, sortBy, sortType } = req.query
 
   const pipeline = [
     {
@@ -142,15 +142,15 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
       $project: {
         createdAt: 1,
         updatedAt: 1,
-        videoId: videoDetails._id,
-        videoTitle: videoDetails.title,
-        videoDuration: videoDetails.duration,
-        videoThumbnail: videoDetails.thumbnail,
-        videoViews: videoDetails.viewsCount,
-        ownerId: ownerDetails._id,
-        ownerAvatar: ownerDetails.avatar,
-        ownerUsername: ownerDetails.username,
-        ownerFullname: ownerDetails.fullname
+        videoId: "$videoDetails._id",
+        videoTitle: "$videoDetails.title",
+        videoDuration: "$videoDetails.duration",
+        videoThumbnail: "$videoDetails.thumbnail",
+        videoViews: "$videoDetails.viewsCount",
+        ownerId: "$ownerDetails._id",
+        ownerAvatar: "$ownerDetails.avatar",
+        ownerUsername: "$ownerDetails.username",
+        ownerFullname: "$ownerDetails.fullname"
       }
     }
   ]
@@ -177,7 +177,7 @@ const getWatchedVideos = asyncHandler(async (req, res) => {
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 10,
     customLabels: {
-      docs: "watchVideos",
+      docs: "watchedVideos",
       totalDocs: "totalVideos"
     }
   }
